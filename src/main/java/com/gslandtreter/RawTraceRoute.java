@@ -1,3 +1,18 @@
+/* Copyright 2018 Gustavo Spier Landtreter
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.gslandtreter;
 
 import com.savarese.rocksaw.net.RawSocket;
@@ -11,10 +26,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 import static com.savarese.rocksaw.net.RawSocket.*;
-
 
 public class RawTraceRoute {
 
@@ -32,8 +45,7 @@ public class RawTraceRoute {
     private long start;
     private List<InetAddress> hops = new ArrayList<InetAddress>();
 
-    private RawTraceRoute(int id, int protocolFamily, int protocol)
-            throws IOException {
+    private RawTraceRoute(int id, int protocolFamily, int protocol) throws IOException {
         sequence = 0;
         identifier = id;
 
@@ -57,7 +69,7 @@ public class RawTraceRoute {
         this.protocol = protocol;
     }
 
-    private RawTraceRoute(int id, int recvTimeoutMillis) throws IOException {
+    public RawTraceRoute(int id, int recvTimeoutMillis) throws IOException {
         this(id);
         receiveTimeout = recvTimeoutMillis;
     }
@@ -126,15 +138,15 @@ public class RawTraceRoute {
         socket.read(recvData, srcAddress);
     }
 
-    private List<InetAddress> execute(InetAddress address, int ttl) throws IOException {
+    public List<InetAddress> execute (InetAddress address, int ttl) throws IOException {
 
         hops.clear();
 
         for (int i = 1; i < ttl; i++) {
-            open();
-            sendEchoRequest(address, i);
-
             try {
+                open();
+                sendEchoRequest(address, i);
+
                 int code = receiveEchoReply();
 
                 InetAddress hop = getCurrentHop();
@@ -144,9 +156,7 @@ public class RawTraceRoute {
                     break;
                 }
 
-            } catch (InterruptedIOException e) {
-                hops.add(null);
-            } catch (UnknownHostException e) {
+            } catch (InterruptedIOException | UnknownHostException e) {
                 hops.add(null);
             } finally {
                 close();
@@ -191,51 +201,15 @@ public class RawTraceRoute {
      * @return The number of bytes in the data portion of the ICMP ping request
      * packet.
      */
-    private int getRequestDataLength() {
+    public int getRequestDataLength() {
         return sendPacket.getICMPDataByteLength();
     }
 
     /**
      * @return The number of bytes in the entire IP ping request packet.
      */
-    private int getRequestPacketLength() {
+    public int getRequestPacketLength() {
         return sendPacket.getIPPacketLength();
-    }
-
-    public static final void main(String[] args) throws Exception {
-        if (args.length < 1 || args.length > 2) {
-            System.err.println("usage: Ping host [count]");
-            System.exit(1);
-        }
-
-        try {
-            final InetAddress address = InetAddress.getByName(args[0]);
-            final String hostname = address.getCanonicalHostName();
-            final String hostaddr = address.getHostAddress();
-            final int maxHops;
-            // Ping programs usually use the process ID for the identifier,
-            // but we can't get it and this is only a demo.
-            final int id = ThreadLocalRandom.current().nextInt(1, 65535);
-            final RawTraceRoute traceRoute;
-
-            if (args.length == 2)
-                maxHops = Integer.parseInt(args[1]);
-            else
-                maxHops = 5;
-
-            traceRoute = new RawTraceRoute(id);
-
-            System.out.println("PING " + hostname + " (" + hostaddr + ") " +
-                    traceRoute.getRequestDataLength() + "(" +
-                    traceRoute.getRequestPacketLength() + ") bytes of data).");
-
-            List<InetAddress> hops = traceRoute.execute(address, maxHops);
-            System.out.println(hops.toString());
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-        }
     }
 
 }
